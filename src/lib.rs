@@ -1,5 +1,5 @@
-
 use core::panic;
+use std::collections::HashMap;
 use std::thread::{self, JoinHandle};
 use std::net::{TcpListener, TcpStream, SocketAddr};
 use std::io::{self, Write};
@@ -54,43 +54,51 @@ pub fn push_to_server(stream: &mut TcpStream, msg: &str){
 }
 pub fn timer(stream: TcpStream) -> JoinHandle<()>{
     thread::spawn(move||{
-        receive(&mut stream.try_clone().expect(""));
+        println!("[Debug] timer ready...");
+        loop{
+            receive(stream.try_clone().expect(""));
+        }
     })
 }
-pub fn receive(stream: &mut TcpStream) -> Result<(),String>{
+pub fn receive(stream: TcpStream) -> Result<(),String>{
     let mut reader = io::BufReader::new(stream.try_clone().expect(""));
     let data = reader.fill_buf().expect("").to_vec();
-    if data.len() == 0{
+    if data.is_empty(){
         return Ok(());
     }
     let msg = String::from_utf8_lossy(&data);
-    println!("\n[Msg] {}\nme:\n", msg.to_string());
+    println!("\n[Msg] {}\nme:\n", msg);
     reader.consume(data.len());
     Ok(())
 }
-pub fn handle_client(stream: TcpStream, cliend_vec: &mut Vec<TcpStream>){ 
+pub fn handle_client(stream: TcpStream, cliend_vec: &mut HashMap<String, TcpStream>){ 
+    //let _ = stream.set_nonblocking(true);
     let stream_addr = stream.peer_addr().unwrap();
+
+    let mut reader = io::BufReader::new(stream.try_clone().expect(""));
     loop{
         println!("Information reception ready from {}...", stream_addr);
-        let mut reader = io::BufReader::new(stream.try_clone().expect(""));
-        let received = reader.fill_buf().expect("").to_vec();
+        let received = reader.fill_buf().expect("[Err] don`t read...").to_vec();
         if received.is_empty() {
             break;
         }
         let msg = String::from_utf8_lossy(&received);
         println!("[Msg] {} (from: {})", msg, stream_addr);
-        for cliend in &mut *cliend_vec{
+        for (_, cliend) in &mut *cliend_vec{
             let cliend_addr = cliend.peer_addr().unwrap();
             if cliend_addr.to_string() == stream_addr.to_string() {
-                continue;
+                //continue;
             }
             println!("[Debug] {} -> {}", stream_addr, cliend_addr);
             relay(cliend, msg.to_string());
         }
         reader.consume(received.len());
     }
+    thread::sleep(std::time::Duration::from_millis(100));
 }
 pub fn relay(cliend: &mut TcpStream, msg: String){
+    println!("[Debug] relay ready to {:?}", cliend);
     let _ = cliend.write(msg.as_bytes());
     let _ = cliend.flush();
+    println!("[Debug] relay over...");
 }
