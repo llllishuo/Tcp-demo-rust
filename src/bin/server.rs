@@ -4,12 +4,14 @@ use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 use TcpDemoRust::{handle_client, };
 
-
 fn main() -> io::Result<()> {
-    let mut cliend_vec: Arc<Mutex<HashMap<String, TcpStream>>> = Arc::new(Mutex::new(HashMap::new()));
     let listener = TcpListener::bind("127.0.0.1:6188")?;
+
+    let mut cliend_vec: Arc<Mutex<HashMap<String, TcpStream>>> = Arc::new(Mutex::new(HashMap::new()));
+
     let Ok(local_addr) = listener.local_addr()else {todo!()};
     println!("local addr: {}", local_addr);
+
     for stream in listener.incoming().flatten(){
         let stream_addr = stream.peer_addr().unwrap();
         let cliend_vec = Arc::clone(&cliend_vec);

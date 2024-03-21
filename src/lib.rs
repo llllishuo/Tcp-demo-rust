@@ -12,6 +12,15 @@ pub struct User{
     pub password: String,
     pub is_login: bool,
 }
+
+/*
+ * login
+ *
+ * Login authentication and notify the server
+ *
+ * @param stream: server
+ *
+ **/
 pub fn login(stream: &mut TcpStream) -> User{
     println!("login:");
 
@@ -32,6 +41,15 @@ pub fn login(stream: &mut TcpStream) -> User{
     
     User { username, password, is_login: true }
 }
+/*
+ * send_msg
+ * 
+ * Receive data from input and send it to the server
+ *
+ * @param stream: server
+ * @param user: Current user
+ *
+ * */
 pub fn send_msg(stream: &mut TcpStream, user: &mut User) -> Result<(),()>{
     println!("me: ");
     let mut buf = String::new();
@@ -45,6 +63,15 @@ pub fn send_msg(stream: &mut TcpStream, user: &mut User) -> Result<(),()>{
     push_to_server(stream, &msg);
     Ok(())
 }
+
+/*
+ * push to server
+ *
+ * Send data to the client
+ *
+ * @param stream: server
+ * @param msg: data
+ * */
 pub fn push_to_server(stream: &mut TcpStream, msg: &str){
     match stream.write(msg.as_bytes()){
         Ok(n) => println!("[Debug] write size {n}"),
@@ -52,6 +79,15 @@ pub fn push_to_server(stream: &mut TcpStream, msg: &str){
     }
     stream.flush();
 }
+/*
+ * timer
+ *
+ * Similar to a timer, it processes information in real-time and receives server-side data
+ *
+ * @param stream: server
+ * 
+ * */
+
 pub fn timer(stream: TcpStream) -> JoinHandle<()>{
     thread::spawn(move||{
         println!("[Debug] timer ready...");
@@ -60,6 +96,14 @@ pub fn timer(stream: TcpStream) -> JoinHandle<()>{
         }
     })
 }
+/*
+ * receive
+ *
+ * Receive data sent by the server
+ *
+ * @param stream: server
+ *
+ * */
 pub fn receive(stream: TcpStream) -> Result<(),String>{
     let mut reader = io::BufReader::new(stream.try_clone().expect(""));
     let data = reader.fill_buf().expect("").to_vec();
@@ -71,10 +115,20 @@ pub fn receive(stream: TcpStream) -> Result<(),String>{
     reader.consume(data.len());
     Ok(())
 }
+/*
+ * handle client
+ *
+ * The outgoing client sends data and forwards it to other clients
+ *
+ * @param stream: Peer to Peer Client
+ * @param client_vec: List of registered clients
+ * */
 pub fn handle_client(stream: TcpStream, cliend_vec: &mut HashMap<String, TcpStream>){ 
     //let _ = stream.set_nonblocking(true);
     let stream_addr = stream.peer_addr().unwrap();
 
+    // Adapted from https://github.com/thepacketgeek/rust-tcpstream-demo/tree/master/raw#bufread-and-bufreader from thepacketgeek on BufReader
+    // Save TcpStream to buffer to read channel communication data
     let mut reader = io::BufReader::new(stream.try_clone().expect(""));
     loop{
         println!("Information reception ready from {}...", stream_addr);
@@ -96,6 +150,15 @@ pub fn handle_client(stream: TcpStream, cliend_vec: &mut HashMap<String, TcpStre
     }
     thread::sleep(std::time::Duration::from_millis(100));
 }
+/*
+ * relay
+ *
+ * Forward data to the Destination
+ *
+ * @param cliend: Destination
+ * @param msg: Sending messages
+ *
+ */
 pub fn relay(cliend: &mut TcpStream, msg: String){
     println!("[Debug] relay ready to {:?}", cliend);
     let _ = cliend.write(msg.as_bytes());
